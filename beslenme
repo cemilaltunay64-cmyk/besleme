@@ -1,0 +1,184 @@
+
+
+import { useCallback, useState } from 'react';
+import { ScrollView, Text, View, Button } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { bul } from '../data/egzersizler';
+import Uyari from '../components/Uyari';
+
+type Kayit = { id: string; sonTamam: string | null };
+const bugun = () => new Date().toISOString().slice(0, 10);
+
+export default function Program() {
+  const [liste, setListe] = useState<Kayit[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem('program').then((v) => setListe(JSON.parse(v ?? '[]')));
+    }, [])
+  );
+
+  async function tamamla(id: string) {
+    const yeni = liste.map((k) => (k.id === id ? { ...k, sonTamam: bugun() } : k));
+    setListe(yeni);
+    await AsyncStorage.setItem('program', JSON.stringify(yeni));
+  }
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: '600' }}>Programım</Text>
+      <Text style={{ fontSize: 12, opacity: 0.7 }}>Veriler yalnızca bu cihazda saklanır.</Text>
+      {liste.length === 0 ? (
+        <Text>Henüz egzersiz yok. Egzersizler sayfasından bir egzersiz ekle.</Text>
+      ) : (
+        liste.map((k) => (
+          <View key={k.id} style={{ gap: 4 }}>
+            <Text>
+              {bul(k.id)?.ad} {k.sonTamam === bugun() ? '✓ bugün tamamlandı' : ''}
+            </Text>
+            {k.sonTamam !== bugun() && <Button title="Tamamlandı" onPress={() => tamamla(k.id)} />}
+          </View>
+        ))
+      )}
+      <Uyari />
+    </ScrollView>
+  );
+}
+
+import { View, Text } from 'react-native';
+import Uyari from '../components/Uyari';
+
+// 11. haftada API route ve Gemini bağlantısıyla doldurulacak.
+export default function Sor() {
+  return (
+    <View style={{ flex: 1, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: '600' }}>Sor</Text>
+      <Text>Bu ekran 11. haftada AI asistanına bağlanacak.</Text>
+      <Uyari />
+    </View>
+  );
+}
+
+import { ScrollView, Text, View } from 'react-native';
+import { Link } from 'expo-router';
+import { egzersizler } from '../data/egzersizler';
+import Uyari from '../components/Uyari';
+
+export default function Egzersizler() {
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: '600' }}>Egzersizler</Text>
+      {egzersizler.map((e) => (
+        <View key={e.id}>
+          <Link href={{ pathname: '/egzersiz/[id]', params: { id: e.id } }}>
+            {e.ad} · {e.bolge}
+          </Link>
+        </View>
+      ))}
+      <Uyari />
+    </ScrollView>
+  );
+}
+
+import { useState } from 'react';
+import { View, Text, Button } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { bul } from '../../data/egzersizler';
+import Uyari from '../../components/Uyari';
+
+export default function Detay() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const e = bul(id);
+  const [mesaj, setMesaj] = useState('');
+
+  if (!e) return <Text style={{ padding: 24 }}>Egzersiz bulunamadı.</Text>;
+
+  async function programaEkle() {
+    const kayitli = JSON.parse((await AsyncStorage.getItem('program')) ?? '[]');
+    if (!kayitli.some((k: { id: string }) => k.id === e!.id)) {
+      kayitli.push({ id: e!.id, sonTamam: null });
+      await AsyncStorage.setItem('program', JSON.stringify(kayitli));
+    }
+    setMesaj('Programına eklendi.');
+  }
+
+  return (
+    <View style={{ flex: 1, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: '600' }}>{e.ad}</Text>
+      <Text>Bölge: {e.bolge}</Text>
+      <Text>{e.aciklama}</Text>
+      <Text style={{ fontSize: 12, opacity: 0.7 }}>Kaynak: {e.kaynak}</Text>
+      <Button title="Programıma ekle" onPress={programaEkle} />
+      {mesaj ? <Text>{mesaj}</Text> : null}
+      <Uyari />
+    </View>
+  );
+}
+
+import { View, Text } from 'react-native';
+import { Link } from 'expo-router';
+import Uyari from '../components/Uyari';
+
+export default function Ana() {
+  return (
+    <View style={{ flex: 1, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 24, fontWeight: '600' }}>Uygulama adı</Text>
+      <Text>Fizyoterapistinin verdiği programı evde takip et.</Text>
+      <Link href="/egzersizler">Egzersizler</Link>
+      <Link href="/program">Programım</Link>
+      <Link href="/sor">AI asistanına sor</Link>
+      <Uyari />
+    </View>
+  );
+}
+
+import { Text } from 'react-native';
+
+export default function Uyari() {
+  return (
+    <Text style={{ fontSize: 12, opacity: 0.7, marginTop: 16 }}>
+      Bu uygulama tanı veya tedavi önermez. Ağrın artarsa egzersizi bırak ve fizyoterapistine danış.
+    </Text>
+  );
+}
+
+[
+  {"id": "e01", "metin": "Diz bükme. Bölge: diz. Sırtüstü yatın, dizinizi yavaşça büküp düzeltin. 10 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e02", "metin": "Düz bacak kaldırma. Bölge: diz. Sırtüstü yatın, bir dizinizi bükün, diğer bacağınızı düz tutup yavaşça kaldırın ve indirin. Her bacakta 10 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e03", "metin": "Topuk kaydırma. Bölge: diz. Sırtüstü yatın, topuğunuzu zemin üzerinde kalçanıza doğru kaydırıp geri uzatın. Her bacakta 10 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e04", "metin": "Omuz çemberi. Bölge: omuz. Omuzlarınızı öne ve arkaya yavaşça döndürün. 10 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e05", "metin": "Duvarda kol kaydırma. Bölge: omuz. Duvara yaslanıp kollarınızı duvar boyunca ağrısız seviyeye kadar yukarı kaydırın ve indirin. 10 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e06", "metin": "Boyun yana eğme. Bölge: boyun. Dik oturun, başınızı yavaşça omzunuza doğru eğin ve başlangıca dönün. Her yanda 5 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e07", "metin": "Çene içeri çekme. Bölge: boyun. Dik oturun, çenenizi hafifçe geriye çekip birkaç saniye tutun ve bırakın. 8 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e08", "metin": "Kedi-deve. Bölge: bel. Dört ayak üzerinde sırtınızı yavaşça yukarı yuvarlayıp sonra aşağı bırakın. 10 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e09", "metin": "Köprü. Bölge: bel. Sırtüstü yatıp dizlerinizi bükün, kalçanızı yavaşça kaldırın, birkaç saniye tutup indirin. 8 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"},
+  {"id": "e10", "metin": "Ayak bileği daireleri. Bölge: ayak bileği. Otururken ayağınızı havaya kaldırıp ayak bileğinizle yavaşça daireler çizin. Her yönde 10 tekrar.", "kaynak": "TASLAK - İlayda ders kaynağını yazacak"}
+]
+
+import veri from './veri.json';
+
+export type Egzersiz = {
+  id: string;
+  ad: string;
+  bolge: string;
+  aciklama: string;
+  kaynak: string;
+};
+
+// veri.json biçimi: "Ad. Bölge: x. Açıklama ... N tekrar."
+export const egzersizler: Egzersiz[] = veri.map((k) => {
+  const [ad, ...kalan] = k.metin.split('. ');
+  const bolgeKismi = kalan[0] ?? '';
+  const bolge = bolgeKismi.replace('Bölge:', '').replace('.', '').trim();
+  return {
+    id: k.id,
+    ad,
+    bolge,
+    aciklama: kalan.slice(1).join('. '),
+    kaynak: k.kaynak,
+  };
+});
+
+export const bul = (id?: string) => egzersizler.find((e) => e.id === id);
